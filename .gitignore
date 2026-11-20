@@ -1,0 +1,42 @@
+# Node dependencies
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Environment and secrets (CRITICAL: Never commit real secrets)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+
+# Build outputs
+dist/
+**/dist/
+build/
+client/dist/
+server/dist/
+
+# Storage pool local directories & embedded databases (don't commit student files or DBs to git)
+storage/
+storage/**
+server/storage/
+server/storage/**
+**/embedded-pg/**
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Testing coverage and Playwright artifacts
+coverage/
+test-results/
+playwright-report/
+blob-report/

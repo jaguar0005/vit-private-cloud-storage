@@ -1,0 +1,26 @@
+{
+  "name": "vit-private-cloud-storage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private Cloud Storage System for Cloud Computing Course Project",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "setup": "npm install && npm run build --workspaces",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspaces",
+    "build:server": "npm run build --workspace=server",
+    "build:client": "npm run build --workspace=client",
+    "test": "npm run test --workspace=server",
+    "test:security": "npm run test:security --workspace=server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "author": "VIT Cloud Computing Project Team",
+  "license": "MIT"
+}

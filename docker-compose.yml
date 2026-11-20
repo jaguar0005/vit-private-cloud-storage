@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # PostgreSQL 16 Relational Database
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: vit_cloud_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cloud_storage
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_storage"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloud-net
+    # Ports are NOT exposed to the host network in production; mapped here for optional local dev access
+    ports:
+      - "5432:5432"
+
+  # ============================================================================
+  # ClamAV Antivirus Daemon
+  # ============================================================================
+  clamav:
+    image: clamav/clamav:latest
+    container_name: vit_cloud_clamav
+    restart: unless-stopped
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "127.0.0.1:3310"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - cloud-net
+    # Port 3310 kept strictly inside the internal Docker network
+    expose:
+      - "3310"
+
+  # ============================================================================
+  # Backend API & Frontend Static Web Service
+  # ============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vit_cloud_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/cloud_storage?schema=public
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      STORAGE_ROOT_DIR: /app/storage
+      STORAGE_VAULT_DIR: /app/storage/vault
+      STORAGE_QUARANTINE_DIR: /app/storage/quarantine
+      STORAGE_CHUNKS_DIR: /app/storage/chunks
+      STORAGE_MASTER_KEY: ${STORAGE_MASTER_KEY}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      DEV_OTP_CONSOLE: ${DEV_OTP_CONSOLE:-true}
+    volumes:
+      # Host Laptop 20 GB Storage Pool Mount
+      - ./storage:/app/storage
+    ports:
+      - "5000:5000"
+    networks:
+      - cloud-net
+
+networks:
+  cloud-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  clamav_db:

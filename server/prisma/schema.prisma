@@ -1,0 +1,185 @@
+// ==============================================================================
+// Prisma Schema for VIT Private Cloud Storage System
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum SharePermission {
+  VIEW_ONLY
+  DOWNLOAD
+}
+
+model User {
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  role               Role             @default(STUDENT)
+  quota_bytes        BigInt           @default(209715200) // 200 MB personal storage
+  used_bytes         BigInt           @default(0)
+  two_factor_enabled Boolean          @default(false)
+  created_at         DateTime         @default(now())
+  updated_at         DateTime         @updatedAt
+
+  files              File[]
+  folders            Folder[]
+  share_links        ShareLink[]
+  audit_logs         AuditLog[]
+  quarantine_logs    QuarantineLog[]
+  refresh_sessions   RefreshSession[]
+  otps               Otp[]
+
+  @@index([email])
+}
+
+model Otp {
+  id          String   @id @default(uuid())
+  email       String
+  hashed_code String
+  expires_at  DateTime
+  attempts    Int      @default(0)
+  created_at  DateTime @default(now())
+
+  user_id     String?
+  user        User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model RefreshSession {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token_hash String   @unique
+  family_id  String   // UUID representing token rotation lineage
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([family_id])
+}
+
+model Folder {
+  id         String    @id @default(uuid())
+  name       String
+  parent_id  String?
+  parent     Folder?   @relation("FolderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children   Folder[]  @relation("FolderHierarchy")
+  user_id    String
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  deleted_at DateTime? // Nullable: populated when moved to Recycle Bin
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  files      File[]
+
+  @@index([user_id])
+  @@index([parent_id])
+  @@index([deleted_at])
+}
+
+model File {
+  id            String        @id @default(uuid())
+  name          String        // Original client filename (e.g. "lab1.pdf")
+  storage_uuid  String        @unique // Physical filename on disk (<storage_uuid>.enc)
+  mime_type     String
+  size_bytes    BigInt
+  sha256_hash   String        // Cryptographic checksum for integrity & deduplication
+  encrypted_dek String        // Base64-encoded DEK wrapped with Master Key
+  iv            String        // Base64-encoded 12-byte AES-GCM IV
+  auth_tag      String        // Base64-encoded 16-byte GCM authentication tag
+  folder_id     String?
+  folder        Folder?       @relation(fields: [folder_id], references: [id], onDelete: SetNull)
+  user_id       String
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  is_starred    Boolean       @default(false)
+  deleted_at    DateTime?     // Nullable: populated when soft-deleted to Recycle Bin
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  versions      FileVersion[]
+  share_links   ShareLink[]
+
+  @@index([user_id])
+  @@index([folder_id])
+  @@index([deleted_at])
+  @@index([sha256_hash])
+  @@index([name])
+}
+
+model FileVersion {
+  id             String   @id @default(uuid())
+  file_id        String
+  file           File     @relation(fields: [file_id], references: [id], onDelete: Cascade)
+  version_number Int      // 1 through 5
+  storage_uuid   String   @unique
+  size_bytes     BigInt
+  sha256_hash    String
+  encrypted_dek  String
+  iv             String
+  auth_tag       String
+  created_at     DateTime @default(now())
+
+  @@index([file_id])
+}
+
+model ShareLink {
+  id             String          @id @default(uuid())
+  file_id        String
+  file           File            @relation(fields: [file_id], references: [id], onDelete: Cascade)
+  user_id        String
+  user           User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token          String          @unique // Cryptographic random access token
+  password_hash  String?         // Nullable bcrypt hash for password protection
+  expires_at     DateTime?       // Nullable expiration timestamp
+  max_downloads  Int?            // Nullable download cap
+  download_count Int             @default(0)
+  permission     SharePermission @default(DOWNLOAD)
+  is_active      Boolean         @default(true)
+  created_at     DateTime        @default(now())
+
+  @@index([token])
+  @@index([file_id])
+  @@index([user_id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  user_id     String?
+  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  action      String   // AUTH_LOGIN, FILE_UPLOAD, FILE_DELETE, etc.
+  resource_id String?
+  ip_address  String?
+  user_agent  String?
+  details     Json?
+  created_at  DateTime @default(now())
+
+  @@index([user_id])
+  @@index([action])
+  @@index([created_at])
+}
+
+model QuarantineLog {
+  id               String   @id @default(uuid())
+  user_id          String?
+  user             User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  original_name    String
+  size_bytes       BigInt
+  violation_reason String
+  ip_address       String?
+  resolved         Boolean  @default(false)
+  created_at       DateTime @default(now())
+
+  @@index([user_id])
+  @@index([created_at])
+}
