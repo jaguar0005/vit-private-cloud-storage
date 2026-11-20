@@ -10,7 +10,7 @@ export interface SearchFilters {
 }
 
 const CATEGORY_EXTENSIONS: Record<string, string[]> = {
-  DOCUMENTS: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'md', 'epub', 'xlsx', 'csv', 'pptx'],
+  DOCUMENTS: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'md', 'epub', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'log'],
   IMAGES: ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'tiff', 'ico'],
   MEDIA: ['mp4', 'mov', 'avi', 'mkv', 'webm', 'mp3', 'wav', 'flac', 'aac', 'ogg'],
   ARCHIVES: ['zip', 'rar', 'tar', 'gz', 'bz2', '7z', 'xz'],

@@ -124,6 +124,21 @@ export class AdminController {
       next(err);
     }
   }
+
+  /**
+   * GET /api/v1/admin/files
+   */
+  public static async listAllFiles(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const page = parseInt(req.query.page as string, 10) || 1;
+      const limit = parseInt(req.query.limit as string, 10) || 50;
+      const search = (req.query.q as string) || '';
+      const data = await AdminService.getAllFiles(page, limit, search);
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default AdminController;

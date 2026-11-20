@@ -21,6 +21,9 @@ import {
   UserCheck,
   Sun,
   Moon,
+  FolderTree,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -83,13 +86,26 @@ interface AuditLogItem {
   };
 }
 
+interface AdminFileItem {
+  id: string;
+  name: string;
+  sizeBytes: string;
+  mimeType: string;
+  ownerEmail: string;
+  folderName: string;
+  storageUuid: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'USERS' | 'QUARANTINE' | 'AUDIT'>('USERS');
+  const [activeTab, setActiveTab] = useState<'FILES' | 'USERS' | 'QUARANTINE' | 'AUDIT'>('FILES');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [fileSearchTerm, setFileSearchTerm] = useState('');
   const [selectedUserForQuota, setSelectedUserForQuota] = useState<StudentUser | null>(null);
   const [customQuotaMb, setCustomQuotaMb] = useState<string>('200');
   const [auditActionFilter, setAuditActionFilter] = useState<string>('');
@@ -150,6 +166,22 @@ export const AdminDashboard: React.FC = () => {
       return res.data;
     },
     enabled: activeTab === 'AUDIT',
+  });
+
+  // 5. Fetch All Files Across All Tenants (Global Storage Registry)
+  const { data: allFilesData, isLoading: filesLoading } = useQuery<{
+    success: boolean;
+    data: { files: AdminFileItem[]; total: number; page: number; totalPages: number };
+  }>({
+    queryKey: ['adminAllFiles', fileSearchTerm],
+    queryFn: async () => {
+      const url = fileSearchTerm
+        ? `/api/v1/admin/files?limit=100&q=${encodeURIComponent(fileSearchTerm)}`
+        : '/api/v1/admin/files?limit=100';
+      const res = await axios.get(url);
+      return res.data;
+    },
+    enabled: activeTab === 'FILES',
   });
 
   // Update Quota Mutation
@@ -375,6 +407,18 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Console Navigation Tabs */}
         <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <button
+            onClick={() => setActiveTab('FILES')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'FILES'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20'
+                : 'bg-white dark:bg-navy-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <FolderTree className="w-4 h-4" />
+            <span>All System Files ({stats?.tenants.totalFiles ?? 0})</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('USERS')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -683,6 +727,109 @@ export const AdminDashboard: React.FC = () => {
                         </td>
                         <td className="py-3.5 px-4 max-w-xs truncate text-slate-500 font-mono text-[11px]" title={JSON.stringify(log.metadata)}>
                           {JSON.stringify(log.metadata)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: All System Files (Global Multi-Tenant Visibility) */}
+        {activeTab === 'FILES' && (
+          <div className="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-96">
+                <div className="relative w-full">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Search by file name or student email..."
+                    value={fileSearchTerm}
+                    onChange={(e) => setFileSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-navy-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+              <span className="text-xs text-slate-400">
+                Showing {allFilesData?.data.files.length || 0} of {allFilesData?.data.total || 0} institutional objects
+              </span>
+            </div>
+
+            {filesLoading ? (
+              <div className="py-20 flex justify-center items-center">
+                <RefreshCw className="w-6 h-6 text-emerald-500 animate-spin" />
+              </div>
+            ) : !allFilesData?.data.files.length ? (
+              <div className="py-20 text-center">
+                <FolderTree className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">No objects found</p>
+                <p className="text-xs text-slate-400 mt-1">No student files match the active filter</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-navy-800/60 text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800 font-semibold">
+                    <tr>
+                      <th className="py-3 px-4">Object Name</th>
+                      <th className="py-3 px-4">Student Owner</th>
+                      <th className="py-3 px-4">Folder Vault</th>
+                      <th className="py-3 px-4">File Size</th>
+                      <th className="py-3 px-4">Encrypted Blob UUID</th>
+                      <th className="py-3 px-4">Uploaded</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {allFilesData.data.files.map((f) => (
+                      <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-navy-800/30">
+                        <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <span className="truncate max-w-[220px]" title={f.name}>{f.name}</span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+                            {f.ownerEmail}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500">
+                          {f.folderName}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-medium text-slate-700 dark:text-slate-300">
+                          {formatBytes(f.sizeBytes)}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">
+                          <span title={`Physical storage file: storage/vault/${f.storageUuid}.enc (AES-256-GCM)`}>
+                            {f.storageUuid.slice(0, 10)}...enc
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap">
+                          {new Date(f.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <a
+                              href={`/api/v1/files/${f.id}/download?inline=true`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-navy-800 font-semibold inline-flex items-center gap-1 text-[11px]"
+                              title="Open Decrypted Stream in New Tab"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>View</span>
+                            </a>
+                            <a
+                              href={`/api/v1/files/${f.id}/download`}
+                              download
+                              className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-1 text-[11px]"
+                              title="Download Decrypted File"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>Get</span>
+                            </a>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -41,10 +41,17 @@ export class AdminService {
         email: u.email,
         role: u.role,
         quotaBytes: u.quota_bytes.toString(),
+        quota_bytes: u.quota_bytes.toString(),
         usedBytes: u.used_bytes.toString(),
+        used_bytes: u.used_bytes.toString(),
         usagePercentage: Math.min(100, Math.round((Number(u.used_bytes) / Number(u.quota_bytes)) * 100)),
         activeFileCount: u._count.files,
+        _count: {
+          files: u._count.files,
+          folders: 0,
+        },
         createdAt: u.created_at,
+        created_at: u.created_at,
       })),
       total,
       page,
@@ -238,6 +245,59 @@ export class AdminService {
     });
 
     return [headers.join(','), ...rows].join('\n');
+  }
+
+  /**
+   * Lists all uploaded files across all students and tenants in the private cloud
+   */
+  public static async getAllFiles(page = 1, limit = 50, search = '') {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      deleted_at: null,
+    };
+
+    if (search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { user: { email: { contains: search.trim(), mode: 'insensitive' } } },
+      ];
+    }
+
+    const [files, total] = await Promise.all([
+      prisma.file.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, email: true },
+          },
+          folder: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.file.count({ where }),
+    ]);
+
+    return {
+      files: files.map((f) => ({
+        id: f.id,
+        name: f.name,
+        sizeBytes: f.size_bytes.toString(),
+        mimeType: f.mime_type,
+        ownerEmail: f.user.email,
+        folderName: f.folder?.name || 'Root Vault',
+        storageUuid: f.storage_uuid,
+        createdAt: f.created_at,
+        updatedAt: f.updated_at,
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }
 

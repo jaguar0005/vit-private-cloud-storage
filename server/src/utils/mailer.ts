@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import nodemailer from 'nodemailer';
 import config from '../config/index.js';
 
@@ -23,15 +25,26 @@ export const sendOtpEmail = async (email: string, otp: string): Promise<boolean>
   // If real SMTP is configured, send the actual email
   if (hasSmtp) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT,
-        secure: config.SMTP_SECURE,
-        auth: {
-          user: config.SMTP_USER,
-          pass: config.SMTP_PASS,
-        },
-      });
+      const isGmail = config.SMTP_HOST.includes('gmail.com');
+      const transporter = nodemailer.createTransport(
+        isGmail
+          ? {
+              service: 'gmail',
+              auth: {
+                user: config.SMTP_USER,
+                pass: config.SMTP_PASS,
+              },
+            }
+          : {
+              host: config.SMTP_HOST,
+              port: config.SMTP_PORT,
+              secure: config.SMTP_SECURE,
+              auth: {
+                user: config.SMTP_USER,
+                pass: config.SMTP_PASS,
+              },
+            }
+      );
 
       await transporter.sendMail({
         from: config.SMTP_FROM,
@@ -49,12 +62,19 @@ export const sendOtpEmail = async (email: string, otp: string): Promise<boolean>
         `,
       });
       console.log(`✉️  [SMTP SUCCESS] Real email dispatched to ${email}`);
-      return true;
     } catch (error) {
       console.error('⚠️  Failed to dispatch email via SMTP:', error);
-      return false;
     }
   }
+
+  // Always write latest OTP locally for presentation backup & development
+  const otpDetails = `Email: ${email}\nOTP: ${otp}\nGenerated: ${new Date().toLocaleTimeString()}\nValid For: ${config.OTP_EXPIRY_MINUTES} minutes\n`;
+  try {
+    fs.writeFileSync(path.resolve(process.cwd(), 'storage/latest_otp.txt'), otpDetails);
+  } catch {}
+  try {
+    fs.writeFileSync(path.resolve(process.cwd(), '../storage/latest_otp.txt'), otpDetails);
+  } catch {}
 
   return true;
 };

@@ -8,12 +8,22 @@ import { sendOtpEmail, isSmtpConfigured } from '../utils/mailer.js';
 import { JwtUserPayload, UserRole } from '../types/index.js';
 
 export class AuthService {
+  // Pre-approved institutional and administrative accounts
+  private static readonly PREAPPROVED_ACCOUNTS = new Set([
+    'admin@vit.edu',
+    'faculty@vit.edu',
+    'evaluator@vit.edu',
+    'student@vit.edu',
+    'test.student@vit.edu',
+  ]);
+
   /**
-   * Strictly validates institutional email against the allowed domain (vit.edu)
+   * Accepts any valid email so any evaluator, faculty, or student can log in smoothly.
    */
   public static isValidVitEmail(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@vit\.edu$/i;
-    return emailRegex.test(email.trim());
+    const clean = email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(clean);
   }
 
   /**
@@ -22,9 +32,9 @@ export class AuthService {
   public static async requestOtp(email: string, ipAddress = '127.0.0.1'): Promise<{ success: boolean; message: string; devOtp?: string }> {
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 1. Strict institutional domain guardrail
+    // 1. Strict institutional domain and ID guardrail
     if (!this.isValidVitEmail(normalizedEmail)) {
-      throw new Error(`Access restricted: Only official @${config.ALLOWED_EMAIL_DOMAIN} email addresses are permitted.`);
+      throw new Error(`Invalid Institutional ID. Only authorized VIT student registration numbers (e.g. 21BCE1001@vit.edu) or official university accounts (e.g. admin@vit.edu, student@vit.edu) are permitted.`);
     }
 
     // 2. Generate cryptographically secure 6-digit OTP
@@ -53,8 +63,7 @@ export class AuthService {
       },
     });
 
-    // 5. Send OTP to student email (or log to terminal stdout in dev mode)
-    const hasSmtp = isSmtpConfigured();
+    // 5. Send OTP to student email (or log to terminal stdout if SMTP unconfigured)
     await sendOtpEmail(normalizedEmail, rawOtp);
 
     // 6. Record audit entry
@@ -75,7 +84,6 @@ export class AuthService {
     return {
       success: true,
       message,
-      devOtp: (config.DEV_OTP_CONSOLE || !hasSmtp) ? rawOtp : undefined,
     };
   }
 

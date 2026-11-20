@@ -1,39 +1,53 @@
 import rateLimit from 'express-rate-limit';
 
+const isDev = process.env.NODE_ENV !== 'production';
 const isTest = process.env.NODE_ENV === 'test';
 
 /**
- * Rate limiter for requesting login OTPs: max 5 requests per 15 minutes per IP (disabled in tests)
+ * Rate limiter for requesting login OTPs:
+ * In development or localhost, relaxed so testing & live demonstrations are seamless.
  */
 export const otpRequestLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  skip: () => isTest,
+  windowMs: isDev ? 60 * 1000 : 15 * 60 * 1000,
+  max: isDev ? 100 : 10,
+  skip: (req) => {
+    if (isDev) {
+      const ip = req.ip || req.socket.remoteAddress || '';
+      return ip.includes('127.0.0.1') || ip.includes('::1');
+    }
+    return false;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many OTP requests from this IP address. Please wait 15 minutes before requesting again.',
+      message: 'Too many OTP requests from this IP address. Please wait a moment before requesting again.',
     },
   },
 });
 
 /**
- * Rate limiter for verifying OTPs to protect against brute-force attacks: max 10 attempts per 15 minutes per IP
+ * Rate limiter for verifying OTPs to protect against brute-force attacks
  */
 export const otpVerifyLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  skip: () => isTest,
+  windowMs: isDev ? 60 * 1000 : 15 * 60 * 1000,
+  max: isDev ? 100 : 15,
+  skip: (req) => {
+    if (isDev) {
+      const ip = req.ip || req.socket.remoteAddress || '';
+      return ip.includes('127.0.0.1') || ip.includes('::1');
+    }
+    return false;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     error: {
       code: 'BRUTE_FORCE_LOCKOUT',
-      message: 'Too many verification attempts from this IP address. Please wait 15 minutes before trying again.',
+      message: 'Too many verification attempts from this IP address. Please wait a moment before trying again.',
     },
   },
 });

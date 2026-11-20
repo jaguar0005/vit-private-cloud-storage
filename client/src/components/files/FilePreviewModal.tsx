@@ -9,6 +9,7 @@ import {
   Eye,
   RefreshCw,
   AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 
 interface FilePreviewModalProps {
@@ -48,19 +49,28 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ file, isOpen
     setError(null);
 
     try {
-      const res = await axios.get(`/api/v1/files/${file.id}/download`, {
+      const res = await axios.get(`/api/v1/files/${file.id}/download?inline=true`, {
         responseType: 'blob',
       });
 
       const contentType = (res.headers['content-type'] as string) || undefined;
-      const blob = new Blob([res.data], { type: file.mimeType || contentType });
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+      let targetMime = file.mimeType || contentType || 'application/octet-stream';
+      if (ext === 'pdf') targetMime = 'application/pdf';
+      else if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
+        targetMime = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      } else if (['txt', 'log', 'csv', 'md', 'json', 'py', 'java', 'c', 'cpp', 'html', 'css', 'sql', 'sh'].includes(ext)) {
+        targetMime = 'text/plain;charset=utf-8';
+      }
+
+      const blob = new Blob([res.data], { type: targetMime });
       const url = window.URL.createObjectURL(blob);
       setBlobUrl(url);
 
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isText =
-        ['txt', 'md', 'json', 'ts', 'tsx', 'js', 'jsx', 'py', 'java', 'c', 'cpp', 'html', 'css', 'sql', 'yml', 'yaml', 'sh', 'log'].includes(ext) ||
-        (file.mimeType && file.mimeType.startsWith('text/'));
+        ['txt', 'md', 'json', 'ts', 'tsx', 'js', 'jsx', 'py', 'java', 'c', 'cpp', 'html', 'css', 'sql', 'yml', 'yaml', 'sh', 'log', 'csv', 'xml', 'env'].includes(ext) ||
+        (targetMime && targetMime.startsWith('text/'));
 
       if (isText) {
         const text = await blob.text();
@@ -71,6 +81,11 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ file, isOpen
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenInNewTab = () => {
+    if (!blobUrl) return;
+    window.open(blobUrl, '_blank');
   };
 
   const handleDownload = () => {
@@ -116,6 +131,14 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ file, isOpen
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenInNewTab}
+              disabled={!blobUrl}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-navy-800 text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              title="Open file directly in a new browser tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-sky-500" /> Open in New Tab
+            </button>
             {textContent && (
               <button
                 onClick={handleCopyText}
@@ -181,6 +204,59 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ file, isOpen
           ) : isVideo && blobUrl ? (
             <div className="max-h-[70vh] flex items-center justify-center">
               <video controls src={blobUrl} className="max-h-[65vh] rounded-2xl shadow-md border border-slate-200 dark:border-slate-800" />
+            </div>
+          ) : ext === 'csv' && textContent !== null ? (
+            <div className="w-full max-h-[65vh] overflow-auto bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-2">
+              <table className="w-full text-left text-xs font-mono">
+                <tbody>
+                  {textContent.trim().split('\n').map((row, rIdx) => {
+                    const cols = row.split(',');
+                    return (
+                      <tr
+                        key={rIdx}
+                        className={
+                          rIdx === 0
+                            ? 'bg-slate-100 dark:bg-navy-800 font-bold border-b border-slate-200 dark:border-slate-700'
+                            : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-navy-800/40'
+                        }
+                      >
+                        {cols.map((col, cIdx) => (
+                          <td key={cIdx} className="px-3 py-2 whitespace-nowrap text-slate-800 dark:text-slate-200">
+                            {col.trim()}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : ['doc', 'docx'].includes(ext) ? (
+            <div className="bg-white dark:bg-navy-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-md max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center mx-auto">
+                <FileText className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">{file.name}</h4>
+                <p className="text-xs text-slate-400 mt-1">Microsoft Word Document &bull; AES-256-GCM Encrypted</p>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Click below to open the decrypted document in a new tab or save it directly to your system.
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={handleOpenInNewTab}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-navy-800 text-xs font-semibold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4 text-sky-500" /> Open in New Tab
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm inline-flex items-center gap-1.5 transition-all"
+                >
+                  <Download className="w-4 h-4" /> Download & Open
+                </button>
+              </div>
             </div>
           ) : textContent !== null ? (
             <div className="w-full h-[65vh] bg-slate-900 text-slate-100 rounded-2xl p-4 overflow-auto border border-slate-800 font-mono text-xs shadow-inner">

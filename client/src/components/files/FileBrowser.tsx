@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -27,6 +28,8 @@ import {
   PieChart as PieChartIcon,
   Search,
   Filter,
+  ShieldAlert,
+  FolderTree,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ShareModal } from './ShareModal';
@@ -118,7 +121,7 @@ export const FileBrowser: React.FC = () => {
       if (searchQuery.trim()) params.append('q', searchQuery.trim());
       if (selectedCategory !== 'ALL') params.append('category', selectedCategory);
       const res = await axios.get(`/api/v1/search?${params.toString()}`);
-      return res.data.data;
+      return res.data.data?.files || [];
     },
     enabled: isSearchActive,
   });
@@ -275,7 +278,9 @@ export const FileBrowser: React.FC = () => {
     return <File className="w-5 h-5 text-slate-400" />;
   };
 
-  const filesToDisplay = isSearchActive ? (searchResults || []) : (data?.files || []);
+  const filesToDisplay: FileItem[] = isSearchActive
+    ? (Array.isArray(searchResults) ? searchResults : [])
+    : (data?.files || []);
 
   return (
     <div
@@ -345,6 +350,35 @@ export const FileBrowser: React.FC = () => {
         </div>
       )}
 
+      {/* Admin Multi-Tenant Notice Banner */}
+      {user?.role === 'ADMIN' && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-100 dark:bg-amber-900/60 rounded-xl text-amber-700 dark:text-amber-300 shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                <span>Administrator Governance Active</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-900 text-amber-800 dark:text-amber-300 font-extrabold uppercase">
+                  Multi-Tenant
+                </span>
+              </h4>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                You are currently viewing <strong className="underline">admin@vit.edu</strong>'s personal tenant vault (empty). To inspect, download, or manage all student files across the private cloud, open the <strong>Admin Console</strong>.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/admin"
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm inline-flex items-center gap-1.5 shrink-0 transition-colors self-start sm:self-auto"
+          >
+            <FolderTree className="w-4 h-4" />
+            <span>Open All System Files &rarr;</span>
+          </Link>
+        </div>
+      )}
+
       {/* Top Navigation Tabs & Quick Analytics Button */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -361,8 +395,18 @@ export const FileBrowser: React.FC = () => {
             }`}
           >
             <HardDrive className="w-4 h-4" />
-            <span>My Vault Files</span>
+            <span>My Personal Vault</span>
           </button>
+
+          {user?.role === 'ADMIN' && (
+            <Link
+              to="/admin"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all"
+            >
+              <FolderTree className="w-4 h-4" />
+              <span>All Institutional Files (Admin)</span>
+            </Link>
+          )}
 
           <button
             onClick={() => setActiveTab('TRASH')}

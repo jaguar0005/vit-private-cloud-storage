@@ -11,7 +11,6 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -39,8 +38,9 @@ export const Login: React.FC = () => {
     setInfoMessage(null);
 
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail.endsWith('@vit.edu')) {
-      setError('Registration is restricted to official VIT University emails ending in @vit.edu');
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -48,9 +48,6 @@ export const Login: React.FC = () => {
     try {
       const res = await requestOtp(cleanEmail);
       setInfoMessage(res.message);
-      if (res.devOtp) {
-        setDevCode(res.devOtp);
-      }
       setStep('OTP');
       setCountdown(600);
       setTimeout(() => inputRefs.current[0]?.focus(), 150);
@@ -161,9 +158,14 @@ export const Login: React.FC = () => {
                     className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm transition-all shadow-sm"
                   />
                 </div>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-sky-500" />
-                  Only emails matching <span className="font-semibold text-slate-600 dark:text-slate-300">@vit.edu</span> are permitted.
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 flex flex-col gap-1">
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                    Enter your email to receive a live verification OTP
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 pl-5">
+                    Open to all students, evaluators, and admins
+                  </span>
                 </p>
               </div>
 
@@ -191,33 +193,10 @@ export const Login: React.FC = () => {
                 <p className="text-sm font-semibold text-sky-600 dark:text-sky-400">
                   {email}
                 </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  Check your inbox for the verification email.
+                </p>
               </div>
-
-              {devCode && (
-                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-amber-800 dark:text-amber-300">
-                      🔑 Dev Mode Code:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpDigits(devCode.split(''));
-                        inputRefs.current[5]?.focus();
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] shadow-sm transition-colors"
-                    >
-                      Auto-Fill Code
-                    </button>
-                  </div>
-                  <div className="font-mono text-xl font-black tracking-widest text-amber-900 dark:text-amber-100 text-center bg-white dark:bg-navy-900 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
-                    {devCode}
-                  </div>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                    SMTP credentials are not yet configured in <code>.env</code>. You can log in with this code immediately or configure SMTP to deliver real emails to your <strong>@vit.edu</strong> inbox.
-                  </p>
-                </div>
-              )}
 
               {/* 6-Digit Code Inputs */}
               <div className="flex justify-between gap-2">

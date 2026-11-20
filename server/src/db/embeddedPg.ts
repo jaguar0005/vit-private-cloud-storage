@@ -25,7 +25,7 @@ export const isPortInUse = (port: number, host = '127.0.0.1'): Promise<boolean> 
 };
 
 export const ensureDatabaseAvailable = async (): Promise<{ port: number; isEmbedded: boolean }> => {
-  const is5432InUse = await isPortInUse(5432);
+  const is5432InUse = (await isPortInUse(5432, '127.0.0.1')) || (await isPortInUse(5432, '::1'));
   if (is5432InUse) {
     console.log('🐘 PostgreSQL service detected on port 5432.');
     return { port: 5432, isEmbedded: false };
@@ -53,6 +53,13 @@ export const ensureDatabaseAvailable = async (): Promise<{ port: number; isEmbed
 
   await embeddedInstance.start();
   console.log('🚀 Native PostgreSQL active on 127.0.0.1:5432');
+
+  try {
+    await embeddedInstance.createDatabase('cloud_storage');
+    console.log('📦 Database cloud_storage initialized.');
+  } catch {
+    // Already exists
+  }
 
   return { port: 5432, isEmbedded: true };
 };

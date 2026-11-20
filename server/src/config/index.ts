@@ -1,10 +1,16 @@
 import dotenv from 'dotenv';
 import path from 'node:path';
+import fs from 'node:fs';
 import { z } from 'zod';
 
 // Load environment configuration from .env in project root or current working directory
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+// Detect project root directory unambiguously
+const isRoot = fs.existsSync(path.resolve(process.cwd(), 'package.json')) && fs.existsSync(path.resolve(process.cwd(), 'server'));
+const projectRootDir = isRoot ? process.cwd() : path.resolve(process.cwd(), '..');
+const defaultStorageRootDir = path.resolve(projectRootDir, 'storage');
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -13,7 +19,7 @@ const envSchema = z.object({
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
 
   // Database URL
-  DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/cloud_storage?schema=public'),
+  DATABASE_URL: z.string().default('postgresql://postgres:postgrespassword@localhost:5432/cloud_storage?schema=public'),
 
   // Cryptographic Master Key for Envelope Encryption (64 hex characters = 32 bytes)
   STORAGE_MASTER_KEY: z.string().min(64, 'STORAGE_MASTER_KEY must be a 64-character hex string (32 bytes)').default(
@@ -27,10 +33,10 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   // Storage paths on host laptop
-  STORAGE_ROOT_DIR: z.string().default('./storage'),
-  STORAGE_VAULT_DIR: z.string().default('./storage/vault'),
-  STORAGE_QUARANTINE_DIR: z.string().default('./storage/quarantine'),
-  STORAGE_CHUNKS_DIR: z.string().default('./storage/chunks'),
+  STORAGE_ROOT_DIR: z.string().default(defaultStorageRootDir),
+  STORAGE_VAULT_DIR: z.string().default(path.resolve(defaultStorageRootDir, 'vault')),
+  STORAGE_QUARANTINE_DIR: z.string().default(path.resolve(defaultStorageRootDir, 'quarantine')),
+  STORAGE_CHUNKS_DIR: z.string().default(path.resolve(defaultStorageRootDir, 'chunks')),
 
   // Storage Pool Limits
   DEFAULT_USER_QUOTA_BYTES: z.coerce.number().default(209715200), // 200 MB

@@ -11,6 +11,7 @@ router.use(requireAdmin);
 
 router.get('/stats', AdminController.getStats);
 router.get('/users', AdminController.listUsers);
+router.get('/files', AdminController.listAllFiles);
 router.patch('/users/:id/quota', AdminController.updateQuota);
 router.get('/quarantine', AdminController.listQuarantine);
 router.patch('/quarantine/:id/resolve', AdminController.resolveQuarantine);

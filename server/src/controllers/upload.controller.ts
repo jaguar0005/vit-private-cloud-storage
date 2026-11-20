@@ -219,11 +219,27 @@ export class UploadController {
         return;
       }
 
-      // Mandatory Security Download Headers
+      // Mandatory Security Download & Preview Headers
       const sanitizedName = file.name.replace(/["\r\n]/g, '_');
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedName}"`);
+      const isInline = req.query.inline === 'true';
+      res.setHeader('Content-Disposition', `${isInline ? 'inline' : 'attachment'}; filename="${sanitizedName}"`);
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+
+      // Accurately determine Content-Type
+      let mimeType = file.mime_type || 'application/octet-stream';
+      const fileExt = path.extname(file.name).toLowerCase();
+      if (fileExt === '.pdf') mimeType = 'application/pdf';
+      else if (fileExt === '.png') mimeType = 'image/png';
+      else if (fileExt === '.jpg' || fileExt === '.jpeg') mimeType = 'image/jpeg';
+      else if (fileExt === '.svg') mimeType = 'image/svg+xml';
+      else if (fileExt === '.webp') mimeType = 'image/webp';
+      else if (fileExt === '.gif') mimeType = 'image/gif';
+      else if (fileExt === '.txt' || fileExt === '.log') mimeType = 'text/plain; charset=utf-8';
+      else if (fileExt === '.csv') mimeType = 'text/csv; charset=utf-8';
+      else if (fileExt === '.json') mimeType = 'application/json';
+      else if (fileExt === '.md') mimeType = 'text/markdown; charset=utf-8';
+
+      res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', file.size_bytes.toString());
 
       // Stream decrypted ciphertext on-the-fly

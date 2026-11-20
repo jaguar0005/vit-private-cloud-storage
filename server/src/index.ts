@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createApp } from './app.js';
 import config from './config/index.js';
 import { ensureDatabaseAvailable } from './db/embeddedPg.js';
+import { initSchema } from './db/initSchema.js';
 
 // Ensure storage directories exist on host laptop
 const requiredDirectories = [
@@ -26,7 +27,10 @@ async function startServer() {
     // 1. Ensure PostgreSQL database is running (either external or embedded)
     await ensureDatabaseAvailable();
 
-    // 2. Start Express Web Engine
+    // 2. Ensure schema tables are initialized
+    await initSchema();
+
+    // 3. Start Express Web Engine
     const app = createApp();
 
     app.listen(config.PORT, () => {
