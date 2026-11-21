@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import config from '../config/index.js';
 
+
 export interface EnvelopeMetadata {
   storageUuid: string;
   vaultFilePath: string;

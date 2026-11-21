@@ -9,6 +9,7 @@ export interface SearchFilters {
   endDate?: string;
 }
 
+
 const CATEGORY_EXTENSIONS: Record<string, string[]> = {
   DOCUMENTS: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'md', 'epub', 'xlsx', 'xls', 'csv', 'pptx', 'ppt', 'log'],
   IMAGES: ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'tiff', 'ico'],

@@ -4,6 +4,7 @@ import prisma from '../db/prisma.js';
 import config from '../config/index.js';
 import QuotaService from './quota.service.js';
 
+
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class TrashService {

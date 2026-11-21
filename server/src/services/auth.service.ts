@@ -7,6 +7,7 @@ import { TokenService } from './token.service.js';
 import { sendOtpEmail, isSmtpConfigured } from '../utils/mailer.js';
 import { JwtUserPayload, UserRole } from '../types/index.js';
 
+
 export class AuthService {
   // Pre-approved institutional and administrative accounts
   private static readonly PREAPPROVED_ACCOUNTS = new Set([

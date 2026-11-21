@@ -3,6 +3,7 @@ import { Response } from 'express';
 import config from '../config/index.js';
 import { AccessTokenPayload, RefreshTokenPayload, JwtUserPayload } from '../types/index.js';
 
+
 export class TokenService {
   /**
    * Generates a signed Access Token (short-lived, 15m)

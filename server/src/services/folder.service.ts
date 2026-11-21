@@ -5,6 +5,7 @@ export interface BreadcrumbItem {
   name: string;
 }
 
+
 export class FolderService {
   /**
    * Sanitizes folder name to prevent filesystem traversal characters and illegal symbols
